@@ -1,0 +1,21 @@
+.app-shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 20px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 8px 4px 24px; }
+.brand-wrap { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.brand-mark { width: 54px; height: 54px; border-radius: 17px; display: grid; place-items: center; font-size: 29px; font-weight: 800; color: white; background: linear-gradient(135deg, var(--primary), #8878f5); box-shadow: 0 14px 30px color-mix(in srgb, var(--primary) 25%, transparent); flex: 0 0 auto; }
+.brand-wrap h1 { margin: 2px 0 2px; font-size: clamp(1.35rem, 2.6vw, 2rem); line-height: 1.15; }
+.brand-wrap p { margin: 0; color: var(--muted); font-size: .95rem; }
+.eyebrow { font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--primary); }
+.top-actions { display: flex; gap: 8px; align-items: center; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 7px; background: color-mix(in srgb, var(--surface) 82%, transparent); border: 1px solid var(--line); border-radius: 17px; box-shadow: 0 8px 24px rgba(0,0,0,.03); position: sticky; top: 8px; z-index: 10; backdrop-filter: blur(14px); }
+main { padding-top: 18px; }
+.date-bar { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; margin-bottom: 16px; padding: 8px; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+.content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.habits-page, .planner-page { grid-template-columns: minmax(280px, .75fr) minmax(0, 1.25fr); }
+.panel { padding: 20px; min-height: 250px; }
+.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+.section-heading h2, .section-title h2 { margin: 0; font-size: 1.15rem; }
+.section-heading p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
+.stats-page { display: grid; gap: 14px; }
+.stats-summary { grid-template-columns: repeat(4, 1fr); margin-bottom: 0; }
+footer { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: .8rem; padding: 28px 8px 6px; }

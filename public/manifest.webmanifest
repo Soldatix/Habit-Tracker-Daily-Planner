@@ -1,0 +1,13 @@
+{
+  "name": "Habit Tracker / Daily Planner — Apps & Games",
+  "short_name": "Habit Planner",
+  "description": "Build habits, plan your day and track progress privately in your browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#5965e8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
