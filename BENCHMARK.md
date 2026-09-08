@@ -1,116 +1,110 @@
-# AG2 V2.1 vs Desktop ChatGPT Codex — Benchmark Plan
+# AG2 V2.1 vs Desktop ChatGPT Codex — Read-Only Code Review Benchmark
 
 ## Baseline
-Both agents must start from the exact same baseline commit:
+Both agents must review the exact same application baseline commit:
 
 `7a92798ec436f1116c871e5a64ffdce4f33f326d` — `Initial Habit Tracker / Daily Planner V1.0 baseline`
 
-## Test branches
-- `test-ag2-v2.1`
-- `test-codex`
+## Review branches
+- AG2 V2.1: `test-ag2-v2.1`
+- Desktop ChatGPT Codex: `test-codex`
 
-Do not manually edit either branch during a benchmark run.
+Both branches start from the same baseline commit.
 
-## General rules
-1. Give both agents the identical task prompt below.
-2. Each agent may inspect and edit the project files on its own branch.
-3. No manual code corrections while an agent is working.
-4. Do not copy fixes or ideas from one agent to the other.
-5. Record whether the agent completes the task without additional guidance.
-6. Run the same verification checklist after both results.
-7. Preserve existing project architecture unless a change is genuinely necessary.
-8. Existing functionality must not regress.
+# Benchmark #1 — Read-Only Full Project Code Review
 
-# Benchmark #1 — Weekly Overview
+## Rules
+1. Give both agents the **identical prompt** below.
+2. This is a **READ-ONLY review**.
+3. The agent must **not edit, create, delete, rename, format or overwrite any project file**.
+4. The agent must **not commit, push, create a pull request or change branches**.
+5. The agent must **not run auto-fix commands** or install/update dependencies.
+6. The agent may inspect all existing source/configuration files and use read-only analysis tools available to it.
+7. Do not manually help one agent with findings discovered by the other.
+8. Do not tell the second agent what the first agent found.
+9. Findings must distinguish confirmed problems from optional improvements or uncertain hypotheses.
+10. A finding is valuable only if it is supported by the actual project code.
 
-## Identical task prompt
+## Identical prompt for both agents
 
-Add a new **Weekly Overview / Tjedni pregled** feature to the existing Habit Tracker / Daily Planner application.
+```text
+Perform a complete READ-ONLY code review of this Habit Tracker / Daily Planner project.
 
-Requirements:
+IMPORTANT:
+- Do NOT modify, create, delete, rename, format or overwrite any file.
+- Do NOT commit or push anything.
+- Do NOT create a pull request.
+- Do NOT install or update dependencies.
+- Do NOT run auto-fix commands.
+- Your task is analysis and reporting only.
 
-- Add a new main navigation tab for the weekly view without removing or redesigning the existing Today, Habits, Planner or Statistics sections.
-- Show one complete Monday-to-Sunday week at a time.
-- Clearly show the date for every day.
-- For each day, show the habits scheduled for that day and planner tasks assigned to that date.
-- Allow habits and tasks to be marked complete/uncompleted directly from the weekly overview.
-- Changes made in the weekly overview must immediately use the same underlying data as the existing Today, Habits, Planner and Statistics views. Do not create a second independent copy of the data.
-- Add previous-week, next-week and return-to-current-week navigation.
-- Clearly distinguish the current day.
-- Clearly distinguish completed items.
-- A day with no planned habits or tasks must have a clean empty state rather than looking broken.
-- Preserve the current visual style and make the weekly view responsive and practical on desktop and mobile screens around 390 px wide.
-- Support all existing interface languages: Croatian, English, German, Italian and Spanish. Do not translate user-entered habit names, task titles or notes.
-- Preserve Light, Dark and System theme behavior.
-- Preserve existing localStorage data and compatibility with the current JSON export/import backup format. Existing backups must continue to import successfully.
-- Preserve the PWA/build behavior.
-- Do not add a backend, login system, cloud database, React/Vue/Angular or other large framework.
-- Prefer the existing modular Vanilla JavaScript structure and reuse existing storage, date, habit, planner, translation and theme logic where appropriate.
-- Do not make unrelated changes.
+Review the entire existing project, not just one file. Inspect the application architecture and all relevant HTML, JavaScript, CSS, translations, PWA files, package/configuration files and documentation needed to understand the implementation.
 
-When finished:
+Look specifically for:
+1. Real functional bugs or edge cases.
+2. Data-loss or state-consistency problems.
+3. localStorage problems, schema/versioning problems or persistence bugs.
+4. JSON export/import backup problems, validation weaknesses or compatibility risks.
+5. Security issues, including unsafe handling of imported or user-entered data.
+6. PWA/service-worker/manifest problems and update/cache risks.
+7. Problems with Light, Dark or System theme behavior.
+8. Missing, inconsistent or broken translations across Croatian, English, German, Italian and Spanish.
+9. Responsive/mobile layout problems that can be identified from the code.
+10. Accessibility/usability problems.
+11. Date, weekday, streak, statistics or timezone-related logic problems.
+12. Problems in habit scheduling, completion state, planner tasks or statistics calculations.
+13. Build/configuration/dependency issues.
+14. Dead code, duplicated logic, fragile coupling or maintainability problems that could realistically cause defects.
 
-1. Run the available build/check commands.
-2. Briefly report which files were changed and why.
-3. Report any limitations or assumptions honestly.
+Do not invent problems merely to produce a longer report. If something is only a possible concern and cannot be confirmed from the code, label it clearly as a hypothesis.
 
-## Verification checklist
+For every finding provide:
+- Severity: Critical / High / Medium / Low.
+- File path and, where possible, function/section or approximate line/location.
+- What is wrong.
+- Why it matters to the user or application.
+- A concrete scenario that triggers the problem, when applicable.
+- A recommended fix, but DO NOT apply the fix.
 
-### Build / regressions
-- `npm run build` succeeds.
-- Existing Today view still works.
-- Existing Habits view still works.
-- Existing Planner view still works.
-- Existing Statistics view still works.
-- No data loss after page reload.
+Separate the final report into:
+A. Confirmed bugs / defects
+B. Security or data-integrity risks
+C. Accessibility / responsive / localization issues
+D. Code-quality or maintainability concerns
+E. Optional improvements (not bugs)
+F. Things reviewed that appear correct
 
-### Weekly Overview
-- New weekly tab opens correctly.
-- Monday-Sunday dates are correct.
-- Previous week works.
-- Next week works.
-- Return to current week works.
-- Current day is visually identifiable.
-- Scheduled habits appear on the correct days.
-- Tasks appear on the correct dates.
-- Habit completion can be toggled from weekly view.
-- Task completion can be toggled from weekly view.
-- Changes are reflected in Today/Planner/Statistics as appropriate.
-- Empty days have a clear empty state.
-
-### Compatibility
-- Croatian works.
-- English works.
-- German works.
-- Italian works.
-- Spanish works.
-- Light theme works.
-- Dark theme works.
-- System theme works.
-- Existing JSON backup can still be imported.
-- New export can be imported again.
-- Mobile layout is usable at approximately 390 px width.
+At the end provide:
+- Total number of confirmed findings by severity.
+- The 3 most important issues to fix first.
+- An overall code-health score from 0 to 10 with a short justification.
+- A short statement confirming that no project files were modified.
+```
 
 ## Comparison criteria
 Score each agent from 0–5 in each category:
 
-1. Functional correctness
-2. Preservation of existing functionality
-3. Code quality and modularity
-4. Understanding/reuse of existing architecture
-5. UI consistency
-6. Mobile responsiveness
-7. Five-language completeness
-8. Accessibility/usability
-9. Amount of unnecessary code or unrelated changes
-10. Independence — amount of extra guidance required
+1. Number and importance of **real** bugs found.
+2. Accuracy — avoidance of false positives.
+3. Evidence and precision of file/location references.
+4. Understanding of application architecture and data flow.
+5. localStorage / backup / data-integrity analysis.
+6. Security analysis.
+7. PWA / service-worker analysis.
+8. Localization / accessibility / responsive analysis.
+9. Quality and practicality of recommended fixes.
+10. Clarity and prioritization of the final report.
 
 Maximum score: **50 points**.
 
 Also record:
-- elapsed working time,
-- number of files changed,
-- approximate lines added/removed,
-- build errors encountered,
-- bugs found during manual testing,
-- number of follow-up prompts needed.
+- elapsed review time,
+- number of confirmed Critical/High/Medium/Low findings,
+- number of findings later proven to be false positives,
+- important issues found by both agents,
+- important issues found by only one agent,
+- whether either agent attempted to modify files despite the read-only instruction,
+- number of follow-up prompts required.
+
+## Fairness rule
+Do not fix the baseline between the AG2 and Codex reviews. Both agents must review the same code state. Only after both reports are complete should findings be verified and fixes considered.
