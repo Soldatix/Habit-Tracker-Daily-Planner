@@ -13,12 +13,18 @@ export function exportBackup(state) {
   anchor.href = url;
   anchor.download = `habit-planner-backup-${new Date().toISOString().slice(0, 10)}.json`;
   anchor.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export async function importBackup(file) {
+  if (!file || typeof file.text !== 'function') throw new Error('INVALID_BACKUP');
+
   const text = await file.text();
   const payload = JSON.parse(text);
-  if (!payload || payload.backupVersion !== 1 || !payload.data) throw new Error('INVALID_BACKUP');
-  return normalizeState(payload.data);
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('INVALID_BACKUP');
+  if (payload.backupVersion !== 1 || !payload.data || typeof payload.data !== 'object' || Array.isArray(payload.data)) {
+    throw new Error('INVALID_BACKUP');
+  }
+
+  return normalizeState(payload.data, { strict: true });
 }

@@ -1,7 +1,7 @@
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .soft-card { box-shadow: 0 8px 28px rgba(34,48,76,.05); }
 .compact-control { height: 40px; display: flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.compact-control select { border: 0; background: transparent; padding: 0; outline: 0; font-weight: 700; }
+.compact-control select { border: 0; background: transparent; padding: 0; font-weight: 700; }
 .icon-button { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; font-weight: 800; font-size: 1rem; }
 .icon-button:hover { border-color: var(--primary); color: var(--primary); }
 .icon-button.subtle { width: 42px; height: 42px; border: 0; background: transparent; font-size: 1.55rem; }
@@ -62,6 +62,7 @@
 .day-picker input { position: absolute; opacity: 0; pointer-events: none; }
 .day-picker span { display: grid; place-items: center; min-height: 34px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); font-size: .72rem; }
 .day-picker input:checked + span { background: var(--primary); color: white; border-color: var(--primary); }
+.day-picker input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 2px; }
 .form-error { min-height: 18px; margin: -5px 0 0; color: var(--danger); font-size: .8rem; }
 .manage-row { display: grid; grid-template-columns: 48px 1fr 40px; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); padding: 10px 0; }
 .manage-row:last-child { border-bottom: 0; }
