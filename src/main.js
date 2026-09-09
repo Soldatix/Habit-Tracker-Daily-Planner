@@ -4,7 +4,7 @@ import './styles/components.css';
 import './styles/support.css';
 import './styles/responsive.css';
 import { translations, localeMap } from './data/translations.js';
-import { loadState, saveState, clearState, createDefaultState } from './js/storage.js';
+import { loadState, saveState, createDefaultState, normalizeState, STORAGE_KEY } from './js/storage.js';
 import { applyTheme, watchSystemTheme } from './js/theme.js';
 import { toDateKey, shiftDate, formatDate, fromDateKey } from './js/dates.js';
 import { createHabit, habitsForDate, isHabitDone, toggleHabit, deleteHabit, dayCompletion, calculateBestStreak } from './js/habits.js';
@@ -17,30 +17,188 @@ let state = loadState();
 let selectedDate = toDateKey(new Date());
 let activeTab = 'today';
 let toastTimer;
+let importGeneration = 0;
 
 const app = document.querySelector('#app');
 
-function t(key) { return translations[state.settings.language]?.[key] ?? translations.en[key] ?? key; }
+const supplementalTranslations = {
+  hr: {
+    saveError: 'Spremanje nije uspjelo. Promjena nije primijenjena.',
+    copyError: 'Kopiranje nije uspjelo.',
+    markTaskDone: 'Označi zadatak izvršenim',
+    markTaskUndone: 'Označi zadatak neizvršenim',
+  },
+  en: {
+    saveError: 'Saving failed. The change was not applied.',
+    copyError: 'Copying failed.',
+    markTaskDone: 'Mark task as complete',
+    markTaskUndone: 'Mark task as incomplete',
+  },
+  de: {
+    saveError: 'Speichern fehlgeschlagen. Die Änderung wurde nicht übernommen.',
+    copyError: 'Kopieren fehlgeschlagen.',
+    markTaskDone: 'Aufgabe als erledigt markieren',
+    markTaskUndone: 'Aufgabe als nicht erledigt markieren',
+  },
+  it: {
+    saveError: 'Salvataggio non riuscito. La modifica non è stata applicata.',
+    copyError: 'Copia non riuscita.',
+    markTaskDone: 'Segna attività come completata',
+    markTaskUndone: 'Segna attività come non completata',
+  },
+  es: {
+    saveError: 'No se pudo guardar. El cambio no se aplicó.',
+    copyError: 'No se pudo copiar.',
+    markTaskDone: 'Marcar tarea como completada',
+    markTaskUndone: 'Marcar tarea como no completada',
+  },
+};
+
+function t(key) {
+  const language = state.settings.language;
+  return translations[language]?.[key]
+    ?? supplementalTranslations[language]?.[key]
+    ?? translations.en[key]
+    ?? supplementalTranslations.en[key]
+    ?? key;
+}
+
 function locale() { return localeMap[state.settings.language] || 'en-GB'; }
-function persist() { saveState(state); }
-function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
-async function copyText(value) {
+
+function cloneState(value) {
+  return typeof structuredClone === 'function'
+    ? structuredClone(value)
+    : JSON.parse(JSON.stringify(value));
+}
+
+function saveCurrentState(value = state) {
   try {
-    await navigator.clipboard.writeText(value);
+    saveState(value);
+    return true;
   } catch {
-    const area = document.createElement('textarea');
-    area.value = value;
-    area.setAttribute('readonly', '');
-    area.style.position = 'fixed';
-    area.style.opacity = '0';
-    document.body.appendChild(area);
-    area.select();
-    document.execCommand('copy');
+    return false;
+  }
+}
+
+function captureTransientUi() {
+  const forms = [...document.querySelectorAll('form[id]')].map((form) => ({
+    id: form.id,
+    fields: [...form.elements].map((element, index) => ({
+      index,
+      type: element.type,
+      value: element.type === 'file' ? '' : element.value,
+      checked: 'checked' in element ? element.checked : undefined,
+    })),
+  }));
+
+  const active = document.activeElement;
+  let focus = null;
+  if (active?.form?.id) {
+    focus = {
+      kind: 'form',
+      formId: active.form.id,
+      index: [...active.form.elements].indexOf(active),
+    };
+  } else if (active?.id) {
+    focus = { kind: 'id', id: active.id };
+  } else if (active?.dataset?.taskToggle) {
+    focus = { kind: 'taskToggle', value: active.dataset.taskToggle };
+  } else if (active?.dataset?.habitToggle) {
+    focus = { kind: 'habitToggle', value: active.dataset.habitToggle };
+  }
+
+  return { forms, focus };
+}
+
+function restoreTransientUi(snapshot) {
+  if (!snapshot) return;
+
+  for (const savedForm of snapshot.forms) {
+    const form = document.querySelector(`#${savedForm.id}`);
+    if (!form) continue;
+    const elements = [...form.elements];
+    for (const saved of savedForm.fields) {
+      const element = elements[saved.index];
+      if (!element || element.type === 'file') continue;
+      if (typeof saved.checked === 'boolean') element.checked = saved.checked;
+      else element.value = saved.value;
+    }
+    if (savedForm.id === 'habitForm') updateDayPresetState(form);
+  }
+
+  const focus = snapshot.focus;
+  if (!focus) return;
+  let target = null;
+  if (focus.kind === 'form') {
+    const form = document.querySelector(`#${focus.formId}`);
+    target = form ? [...form.elements][focus.index] : null;
+  } else if (focus.kind === 'id') {
+    target = document.getElementById(focus.id);
+  } else if (focus.kind === 'taskToggle') {
+    target = document.querySelector(`[data-task-toggle="${focus.value}"]`);
+  } else if (focus.kind === 'habitToggle') {
+    target = document.querySelector(`[data-habit-toggle="${focus.value}"]`);
+  }
+  target?.focus();
+}
+
+function commitMutation(mutator, { message = null, preserveTransient = false } = {}) {
+  const transient = captureTransientUi();
+  state = loadState();
+  const previous = cloneState(state);
+
+  mutator();
+
+  if (!saveCurrentState()) {
+    state = previous;
+    render();
+    restoreTransientUi(transient);
+    showToast(t('saveError'), true);
+    return false;
+  }
+
+  render();
+  if (preserveTransient) restoreTransientUi(transient);
+  if (message) showToast(t(message));
+  return true;
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  })[char]);
+}
+
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Fall through to the legacy best-effort copy path.
+    }
+  }
+
+  const area = document.createElement('textarea');
+  area.value = value;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+
+  try {
+    return document.execCommand('copy') === true;
+  } catch {
+    return false;
+  } finally {
     area.remove();
   }
 }
 
-function render() {
+function render({ preserveTransient = false } = {}) {
+  const transient = preserveTransient ? captureTransientUi() : null;
+
   document.documentElement.lang = state.settings.language;
   document.title = `${t('appName')} | Apps & Games`;
   applyTheme(state.settings.theme);
@@ -101,6 +259,7 @@ function render() {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   `;
   bindEvents();
+  if (transient) restoreTransientUi(transient);
 }
 
 function tabButton(id, icon, label) {
@@ -161,7 +320,7 @@ function todayView() {
 
 function habitRow(habit) {
   const done = isHabitDone(state, habit.id, selectedDate);
-  return `<button class="habit-row ${done ? 'done' : ''}" data-habit-toggle="${habit.id}" aria-pressed="${done}">
+  return `<button class="habit-row ${done ? 'done' : ''}" data-habit-toggle="${escapeHtml(habit.id)}" aria-pressed="${done}">
     <span class="habit-emoji">${escapeHtml(habit.emoji)}</span>
     <span class="habit-name">${escapeHtml(habit.name)}</span>
     <span class="habit-check">${done ? '✓' : ''}</span>
@@ -169,10 +328,11 @@ function habitRow(habit) {
 }
 
 function taskRow(task) {
+  const actionLabel = task.done ? t('markTaskUndone') : t('markTaskDone');
   return `<div class="task-row ${task.done ? 'done' : ''}">
-    <button class="task-check" data-task-toggle="${task.id}" aria-label="${task.done ? t('cancel') : t('save')}" aria-pressed="${task.done}">${task.done ? '✓' : ''}</button>
-    <div class="task-copy"><strong>${escapeHtml(task.title)}</strong><div class="task-meta">${task.time ? `<span>🕒 ${escapeHtml(task.time)}</span>` : ''}<span class="priority ${task.priority}">${t(task.priority)}</span></div>${task.notes ? `<p>${escapeHtml(task.notes)}</p>` : ''}</div>
-    <button class="icon-button danger ghost" data-task-delete="${task.id}" title="${t('delete')}" aria-label="${t('delete')}">×</button>
+    <button class="task-check" data-task-toggle="${escapeHtml(task.id)}" aria-label="${escapeHtml(`${actionLabel}: ${task.title}`)}" aria-pressed="${task.done}">${task.done ? '✓' : ''}</button>
+    <div class="task-copy"><strong>${escapeHtml(task.title)}</strong><div class="task-meta">${task.time ? `<span>🕒 ${escapeHtml(task.time)}</span>` : ''}<span class="priority ${escapeHtml(task.priority)}">${t(task.priority)}</span></div>${task.notes ? `<p>${escapeHtml(task.notes)}</p>` : ''}</div>
+    <button class="icon-button danger ghost" data-task-delete="${escapeHtml(task.id)}" title="${t('delete')}" aria-label="${escapeHtml(`${t('delete')}: ${task.title}`)}">×</button>
   </div>`;
 }
 
@@ -209,7 +369,7 @@ function habitsView() {
 
 function habitManageRow(habit) {
   const labels = ['mon','tue','wed','thu','fri','sat','sun'];
-  return `<div class="manage-row"><div class="manage-emoji">${escapeHtml(habit.emoji)}</div><div class="manage-copy"><strong>${escapeHtml(habit.name)}</strong><div class="weekday-pills">${habit.days.map((day) => `<span>${t(labels[day-1])}</span>`).join('')}</div></div><button class="icon-button danger ghost" data-habit-delete="${habit.id}" title="${t('delete')}" aria-label="${t('delete')}">×</button></div>`;
+  return `<div class="manage-row"><div class="manage-emoji">${escapeHtml(habit.emoji)}</div><div class="manage-copy"><strong>${escapeHtml(habit.name)}</strong><div class="weekday-pills">${habit.days.map((day) => `<span>${t(labels[day-1])}</span>`).join('')}</div></div><button class="icon-button danger ghost" data-habit-delete="${escapeHtml(habit.id)}" title="${t('delete')}" aria-label="${escapeHtml(`${t('delete')}: ${habit.name}`)}">×</button></div>`;
 }
 
 function plannerView() {
@@ -219,7 +379,7 @@ function plannerView() {
       <div class="section-heading"><div><h2>${t('addTask')}</h2></div></div>
       <form id="taskForm" class="stack-form">
         <label>${t('taskTitle')}<input name="title" maxlength="100" autocomplete="off" required /></label>
-        <div class="two-cols"><label>${t('taskDate')}<input name="date" type="date" value="${selectedDate}" required /></label><label>${t('time')}<input name="time" type="time" /></label></div>
+        <div class="two-cols"><label>${t('taskDate')}<input name="date" type="date" min="0001-01-01" value="${selectedDate}" required /></label><label>${t('time')}<input name="time" type="time" /></label></div>
         <label>${t('priority')}<select name="priority"><option value="medium">${t('medium')}</option><option value="high">${t('high')}</option><option value="low">${t('low')}</option></select></label>
         <label>${t('notes')}<textarea name="notes" maxlength="300" rows="3"></textarea></label>
         <p class="form-error" id="taskError" aria-live="polite"></p>
@@ -258,30 +418,62 @@ function bindEvents() {
   document.querySelectorAll('[data-shift-date]').forEach((el) => el.addEventListener('click', () => { selectedDate = shiftDate(selectedDate, Number(el.dataset.shiftDate)); render(); }));
   document.querySelector('#dateLabel')?.addEventListener('click', () => { selectedDate = toDateKey(new Date()); render(); });
 
-  document.querySelector('#languageSelect')?.addEventListener('change', (event) => { state.settings.language = event.target.value; persist(); render(); });
-  document.querySelector('#themeSelect')?.addEventListener('change', (event) => { state.settings.theme = event.target.value; persist(); render(); });
+  document.querySelector('#languageSelect')?.addEventListener('change', (event) => {
+    const language = event.target.value;
+    commitMutation(() => { state.settings.language = language; }, { preserveTransient: true });
+  });
+  document.querySelector('#themeSelect')?.addEventListener('change', (event) => {
+    const theme = event.target.value;
+    commitMutation(() => { state.settings.theme = theme; }, { preserveTransient: true });
+  });
   document.querySelector('#settingsButton')?.addEventListener('click', showSettingsModal);
   document.querySelector('#infoButton')?.addEventListener('click', showInfoModal);
   document.querySelector('#footerInfo')?.addEventListener('click', showInfoModal);
 
-  document.querySelectorAll('[data-habit-toggle]').forEach((el) => el.addEventListener('click', () => { toggleHabit(state, el.dataset.habitToggle, selectedDate); persist(); render(); }));
-  document.querySelectorAll('[data-task-toggle]').forEach((el) => el.addEventListener('click', () => { toggleTask(state, el.dataset.taskToggle); persist(); render(); }));
-  document.querySelectorAll('[data-task-delete]').forEach((el) => el.addEventListener('click', () => { deleteTask(state, el.dataset.taskDelete); persist(); render(); showToast(t('taskDeleted')); }));
-  document.querySelectorAll('[data-habit-delete]').forEach((el) => el.addEventListener('click', () => { deleteHabit(state, el.dataset.habitDelete); persist(); render(); showToast(t('habitDeleted')); }));
+  document.querySelectorAll('[data-habit-toggle]').forEach((el) => el.addEventListener('click', () => {
+    commitMutation(() => toggleHabit(state, el.dataset.habitToggle, selectedDate), { preserveTransient: true });
+  }));
+  document.querySelectorAll('[data-task-toggle]').forEach((el) => el.addEventListener('click', () => {
+    commitMutation(() => toggleTask(state, el.dataset.taskToggle), { preserveTransient: true });
+  }));
+  document.querySelectorAll('[data-task-delete]').forEach((el) => el.addEventListener('click', () => {
+    commitMutation(() => deleteTask(state, el.dataset.taskDelete), { message: 'taskDeleted', preserveTransient: true });
+  }));
+  document.querySelectorAll('[data-habit-delete]').forEach((el) => el.addEventListener('click', () => {
+    commitMutation(() => deleteHabit(state, el.dataset.habitDelete), { message: 'habitDeleted', preserveTransient: true });
+  }));
 
   bindHabitForm();
   bindTaskForm();
 }
 
+const DAY_PRESETS = {
+  daily: [1,2,3,4,5,6,7],
+  weekdays: [1,2,3,4,5],
+  weekends: [6,7],
+};
+
+function updateDayPresetState(form) {
+  const selected = [...form.querySelectorAll('[name="days"]:checked')].map((box) => Number(box.value)).sort((a, b) => a - b);
+  form.querySelectorAll('[data-day-preset]').forEach((button) => {
+    const preset = DAY_PRESETS[button.dataset.dayPreset] || [];
+    const active = selected.length === preset.length && selected.every((value, index) => value === preset[index]);
+    button.classList.toggle('active', active);
+  });
+}
+
 function bindHabitForm() {
   const form = document.querySelector('#habitForm');
   if (!form) return;
+
   form.querySelectorAll('[data-day-preset]').forEach((button) => button.addEventListener('click', () => {
-    const presets = { daily: [1,2,3,4,5,6,7], weekdays: [1,2,3,4,5], weekends: [6,7] };
-    const selected = presets[button.dataset.dayPreset];
+    const selected = DAY_PRESETS[button.dataset.dayPreset] || [];
     form.querySelectorAll('[name="days"]').forEach((box) => { box.checked = selected.includes(Number(box.value)); });
-    form.querySelectorAll('[data-day-preset]').forEach((item) => item.classList.toggle('active', item === button));
+    updateDayPresetState(form);
   }));
+
+  form.querySelectorAll('[name="days"]').forEach((box) => box.addEventListener('change', () => updateDayPresetState(form)));
+
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const fd = new FormData(form);
@@ -290,31 +482,107 @@ function bindHabitForm() {
     const error = form.querySelector('#habitError');
     if (!name) { error.textContent = t('required'); return; }
     if (!days.length) { error.textContent = t('selectedDaysRequired'); return; }
-    state.habits.push(createHabit({ name, emoji: fd.get('emoji'), days }));
-    persist();
-    render();
-    showToast(t('habitAdded'));
+
+    commitMutation(
+      () => state.habits.push(createHabit({ name, emoji: fd.get('emoji'), days })),
+      { message: 'habitAdded' },
+    );
   });
 }
 
 function bindTaskForm() {
   const form = document.querySelector('#taskForm');
   if (!form) return;
+
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const fd = new FormData(form);
     const title = String(fd.get('title') || '').trim();
     if (!title) { form.querySelector('#taskError').textContent = t('required'); return; }
-    state.tasks.push(createTask({ title, date: fd.get('date'), time: fd.get('time'), priority: fd.get('priority'), notes: fd.get('notes') }));
-    selectedDate = String(fd.get('date'));
-    persist();
+
+    const transient = captureTransientUi();
+    state = loadState();
+    const previous = cloneState(state);
+    const date = String(fd.get('date'));
+
+    state.tasks.push(createTask({
+      title,
+      date,
+      time: fd.get('time'),
+      priority: fd.get('priority'),
+      notes: fd.get('notes'),
+    }));
+
+    if (!saveCurrentState()) {
+      state = previous;
+      render();
+      restoreTransientUi(transient);
+      showToast(t('saveError'), true);
+      return;
+    }
+
+    selectedDate = date;
     render();
     showToast(t('taskAdded'));
   });
 }
 
+function createModalController(root, opener, initialFocusSelector, onClose) {
+  const shell = app.querySelector('.app-shell');
+  const dialog = root.querySelector('[role="dialog"]');
+  let closed = false;
+
+  shell?.setAttribute('inert', '');
+
+  const getFocusable = () => dialog
+    ? [...dialog.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+      .filter((element) => !element.hidden && element.offsetParent !== null)
+    : [];
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    onClose?.();
+    root.removeEventListener('keydown', onKeyDown);
+    shell?.removeAttribute('inert');
+    root.innerHTML = '';
+    if (opener?.isConnected) opener.focus();
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = getFocusable();
+    if (!focusable.length) {
+      event.preventDefault();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  root.addEventListener('keydown', onKeyDown);
+  queueMicrotask(() => root.querySelector(initialFocusSelector)?.focus());
+
+  return close;
+}
+
 function showInfoModal() {
   const root = document.querySelector('#modalRoot');
+  const opener = document.activeElement;
   root.innerHTML = `<div class="modal-backdrop" id="modalBackdrop"><section class="modal card" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
     <div class="modal-header"><div><div class="eyebrow">Apps & Games</div><h2 id="infoTitle">${t('info')}</h2></div><button class="icon-button ghost" id="closeModal" aria-label="${t('close')}">×</button></div>
     <div class="info-grid">
@@ -326,19 +594,20 @@ function showInfoModal() {
     ${renderSupportSection(t)}
     <div class="modal-footer"><span>${t('version')} 1.0.0</span><button class="primary-button" id="closeModalBottom">${t('close')}</button></div>
   </section></div>`;
-  const close = () => { root.innerHTML = ''; };
+
+  const close = createModalController(root, opener, '#closeModal');
   root.querySelector('#closeModal')?.addEventListener('click', close);
   root.querySelector('#closeModalBottom')?.addEventListener('click', close);
   root.querySelector('#modalBackdrop')?.addEventListener('click', (event) => { if (event.target.id === 'modalBackdrop') close(); });
   root.querySelectorAll('[data-copy-address]').forEach((button) => button.addEventListener('click', async () => {
-    await copyText(button.dataset.copyAddress || '');
-    showToast(t('copied'));
+    const copied = await copyText(button.dataset.copyAddress || '');
+    showToast(t(copied ? 'copied' : 'copyError'), !copied);
   }));
-  root.querySelector('#closeModal')?.focus();
 }
 
 function showSettingsModal() {
   const root = document.querySelector('#modalRoot');
+  const opener = document.activeElement;
   root.innerHTML = `<div class="modal-backdrop" id="settingsBackdrop"><section class="modal card settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modal-header"><div><div class="eyebrow">Apps & Games</div><h2 id="settingsTitle">⚙ ${t('settings')}</h2></div><button class="icon-button ghost" id="closeSettings" aria-label="${t('close')}">×</button></div>
 
@@ -346,8 +615,9 @@ function showSettingsModal() {
       <h3>${t('dataTools')}</h3>
       <p>${t('backupDescription')}</p>
       <div class="button-row settings-actions">
-        <button class="secondary-button" id="exportButton">↓ ${t('exportData')}</button>
-        <label class="secondary-button file-button">↑ ${t('importData')}<input id="importInput" type="file" accept="application/json,.json" hidden></label>
+        <button class="secondary-button" id="exportButton" type="button">↓ ${t('exportData')}</button>
+        <button class="secondary-button file-button" id="importButton" type="button">↑ ${t('importData')}</button>
+        <input id="importInput" type="file" accept="application/json,.json" hidden>
       </div>
     </section>
 
@@ -360,35 +630,51 @@ function showSettingsModal() {
     <div class="modal-footer"><span>🔒 ${t('localOnly')}</span><button class="primary-button" id="closeSettingsBottom">${t('close')}</button></div>
   </section></div>`;
 
-  const close = () => { root.innerHTML = ''; };
+  const close = createModalController(root, opener, '#closeSettings', () => { importGeneration += 1; });
   root.querySelector('#closeSettings')?.addEventListener('click', close);
   root.querySelector('#closeSettingsBottom')?.addEventListener('click', close);
   root.querySelector('#settingsBackdrop')?.addEventListener('click', (event) => { if (event.target.id === 'settingsBackdrop') close(); });
   root.querySelector('#exportButton')?.addEventListener('click', () => { exportBackup(state); showToast(t('exported')); });
+  root.querySelector('#importButton')?.addEventListener('click', () => root.querySelector('#importInput')?.click());
+
   root.querySelector('#importInput')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const generation = ++importGeneration;
+
     try {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      state = await importBackup(file);
-      persist();
+      const imported = await importBackup(file);
+      if (generation !== importGeneration) return;
+      if (!saveCurrentState(imported)) {
+        showToast(t('saveError'), true);
+        return;
+      }
+      state = imported;
       close();
       render();
       showToast(t('imported'));
-    } catch { showToast(t('importError'), true); }
+    } catch {
+      if (generation === importGeneration) showToast(t('importError'), true);
+    }
   });
+
   root.querySelector('#resetButton')?.addEventListener('click', () => {
     if (!window.confirm(t('resetConfirm'))) return;
-    const settings = { ...state.settings };
-    clearState();
-    state = createDefaultState();
-    state.settings = settings;
-    persist();
+    importGeneration += 1;
+
+    const nextState = createDefaultState();
+    nextState.settings = { ...state.settings };
+    if (!saveCurrentState(nextState)) {
+      showToast(t('saveError'), true);
+      return;
+    }
+
+    state = nextState;
     applyTheme(state.settings.theme);
     close();
     render();
     showToast(t('clearDone'));
   });
-  root.querySelector('#closeSettings')?.focus();
 }
 
 function showToast(message, isError = false) {
@@ -401,7 +687,20 @@ function showToast(message, isError = false) {
   toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
 }
 
-watchSystemTheme(() => state.settings.theme, render);
+window.addEventListener('storage', (event) => {
+  if (event.key !== STORAGE_KEY) return;
+  importGeneration += 1;
+
+  try {
+    state = event.newValue ? normalizeState(JSON.parse(event.newValue)) : createDefaultState();
+  } catch {
+    state = loadState();
+  }
+
+  render({ preserveTransient: true });
+});
+
+watchSystemTheme(() => state.settings.theme);
 render();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
