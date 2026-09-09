@@ -1,5 +1,5 @@
 export function toDateKey(date) {
-  const y = date.getFullYear();
+  const y = String(date.getFullYear()).padStart(4, '0');
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
@@ -7,7 +7,10 @@ export function toDateKey(date) {
 
 export function fromDateKey(key) {
   const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  const date = new Date(0);
+  date.setFullYear(y, m - 1, d);
+  date.setHours(12, 0, 0, 0);
+  return date;
 }
 
 export function shiftDate(key, amount) {
