@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'appsandgames.habitPlanner.v1';
+export const STORAGE_KEY = 'appsandgames.habitPlanner.v1';
 
 const LANGUAGES = new Set(['hr', 'en', 'de', 'it', 'es']);
 const THEMES = new Set(['light', 'dark', 'system']);
