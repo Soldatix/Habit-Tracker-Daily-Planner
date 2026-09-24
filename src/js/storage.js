@@ -10,7 +10,7 @@ const TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 export function createDefaultState() {
   return {
     schemaVersion: 1,
-    settings: { language: 'hr', theme: 'system' },
+    settings: { language: 'en', theme: 'system' },
     habits: [],
     completions: {},
     tasks: [],
@@ -135,7 +135,7 @@ export function normalizeState(value, { strict = false } = {}) {
   if (strict && (!Array.isArray(value.habits) || !Array.isArray(value.tasks) || !isPlainObject(value.completions))) throw new Error('INVALID_BACKUP');
 
   const settings = {
-    language: LANGUAGES.has(value.settings?.language) ? value.settings.language : 'hr',
+    language: LANGUAGES.has(value.settings?.language) ? value.settings.language : 'en',
     theme: THEMES.has(value.settings?.theme) ? value.settings.theme : 'system',
   };
 

@@ -4,6 +4,8 @@ import './styles/components.css';
 import './styles/support.css';
 import './styles/responsive.css';
 import { translations, localeMap } from './data/translations.js';
+import { standardUiTranslations } from './data/standard-ui-translations.js';
+import { enhanceLanguageMenus } from './js/ag-language-menu.js';
 import { loadState, saveState, createDefaultState, normalizeState, STORAGE_KEY } from './js/storage.js';
 import { applyTheme, watchSystemTheme } from './js/theme.js';
 import { toDateKey, shiftDate, formatDate, fromDateKey } from './js/dates.js';
@@ -58,8 +60,10 @@ function t(key) {
   const language = state.settings.language;
   return translations[language]?.[key]
     ?? supplementalTranslations[language]?.[key]
+    ?? standardUiTranslations[language]?.[key]
     ?? translations.en[key]
     ?? supplementalTranslations.en[key]
+    ?? standardUiTranslations.en[key]
     ?? key;
 }
 
@@ -215,12 +219,11 @@ function render({ preserveTransient = false } = {}) {
           </div>
         </div>
         <div class="top-actions">
-          <label class="compact-control" title="${t('language')}">
-            <span aria-hidden="true">🌐</span>
-            <select id="languageSelect" aria-label="${t('language')}">
-              ${[['hr','HR'],['en','EN'],['de','DE'],['it','IT'],['es','ES']].map(([value,label]) => `<option value="${value}" ${state.settings.language === value ? 'selected' : ''}>${label}</option>`).join('')}
+          <div title="${t('language')}">
+            <select id="languageSelect" data-ag-language-menu aria-label="${t('language')}">
+              ${[['hr','Hrvatski'],['en','English'],['de','Deutsch'],['it','Italiano'],['es','Español']].map(([value,label]) => `<option value="${value}" ${state.settings.language === value ? 'selected' : ''}>${label}</option>`).join('')}
             </select>
-          </label>
+          </div>
           <label class="compact-control" title="${t('theme')}">
             <span aria-hidden="true">◐</span>
             <select id="themeSelect" aria-label="${t('theme')}">
@@ -234,7 +237,7 @@ function render({ preserveTransient = false } = {}) {
         </div>
       </header>
 
-      <nav class="tabs" aria-label="Primary">
+      <nav class="tabs" aria-label="${t('primaryNavigation')}">
         ${tabButton('today', '⌂', t('today'))}
         ${tabButton('habits', '✓', t('habits'))}
         ${tabButton('planner', '☷', t('planner'))}
@@ -259,6 +262,7 @@ function render({ preserveTransient = false } = {}) {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   `;
   bindEvents();
+  enhanceLanguageMenus(app);
   if (transient) restoreTransientUi(transient);
 }
 
@@ -586,7 +590,8 @@ function showInfoModal() {
   root.innerHTML = `<div class="modal-backdrop" id="modalBackdrop"><section class="modal card" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
     <div class="modal-header"><div><div class="eyebrow">Apps & Games</div><h2 id="infoTitle">${t('info')}</h2></div><button class="icon-button ghost" id="closeModal" aria-label="${t('close')}">×</button></div>
     <div class="info-grid">
-      <div class="info-block"><span>✓</span><div><h3>${t('aboutTitle')}</h3><p>${t('aboutText')}</p></div></div>
+      <div class="info-block"><span>✓</span><div><h3>${t('aboutTitle')}</h3><p>${t('aboutText')}</p><a class="info-link" href="https://appsandgames.org/" target="_blank" rel="noopener noreferrer">${t('visitPortal')} ↗</a></div></div>
+      <div class="info-block"><span>★</span><div><h3>${t('featuresTitle')}</h3><ul class="info-features"><li>${t('featureHabits')}</li><li>${t('featurePlanner')}</li><li>${t('featureStats')}</li><li>${t('featureBackup')}</li></ul></div></div>
       <div class="info-block"><span>🌐</span><div><h3>${t('languageNoteTitle')}</h3><p>${t('languageNoteText')}</p></div></div>
       <div class="info-block"><span>🔒</span><div><h3>${t('privacyTitle')}</h3><p>${t('privacyText')}</p></div></div>
       <div class="info-block"><span>⬇</span><div><h3>${t('installTitle')}</h3><p>${t('installText')}</p></div></div>
