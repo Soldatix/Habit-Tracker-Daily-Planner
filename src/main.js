@@ -23,7 +23,7 @@ let importGeneration = 0;
 let deferredWebInstallPrompt = null;
 let webInstallStatusKey = 'waiting';
 
-const webInstallRequested = new URLSearchParams(window.location.search).get('install') === 'web';
+let webInstallRequested = new URLSearchParams(window.location.search).get('install') === 'web';
 const app = document.querySelector('#app');
 
 const supplementalTranslations = {
@@ -128,7 +128,10 @@ function isWebAppStandalone() {
 }
 
 function renderWebInstallBanner(statusKey = null) {
-  if (!webInstallRequested) return;
+  if (!webInstallRequested) {
+    document.querySelector('#webInstallBanner')?.remove();
+    return;
+  }
 
   if (statusKey) webInstallStatusKey = statusKey;
   if (isWebAppStandalone()) webInstallStatusKey = 'installed';
@@ -185,6 +188,7 @@ async function installWebApplication() {
 }
 
 function continueInBrowser() {
+  webInstallRequested = false;
   document.querySelector('#webInstallBanner')?.remove();
   const url = new URL(window.location.href);
   url.searchParams.delete('install');
