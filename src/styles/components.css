@@ -84,6 +84,9 @@
 .info-block > span { font-size: 1.3rem; }
 .info-block h3 { margin: 0 0 4px; font-size: .95rem; }
 .info-block p { margin: 0; color: var(--muted); font-size: .86rem; line-height: 1.5; }
+.info-features { margin: 0; padding-left: 18px; color: var(--muted); font-size: .86rem; line-height: 1.55; }
+.info-features li + li { margin-top: 3px; }
+.info-link { display: inline-flex; margin-top: 9px; color: var(--primary); font-size: .84rem; font-weight: 750; }
 .data-details { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
 .data-details summary { cursor: pointer; color: var(--primary); font-weight: 760; }
 .data-tools { padding-top: 12px; }
