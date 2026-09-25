@@ -1,9 +1,17 @@
 const LANGUAGE_NAMES = {
-  hr: 'Hrvatski',
   en: 'English',
+  hr: 'Hrvatski',
   de: 'Deutsch',
   it: 'Italiano',
   es: 'Español',
+};
+
+const LANGUAGE_CODES = {
+  en: 'EN',
+  hr: 'HR',
+  de: 'DE',
+  it: 'IT',
+  es: 'ES',
 };
 
 const FLAGS = {
@@ -23,19 +31,21 @@ function installStyles() {
   style.textContent = [
     '.ag-language-native{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important;padding:0!important;margin:0!important;border:0!important}',
     '.ag-language-menu{position:relative;min-width:0}',
-    '.ag-language-button{min-width:148px;height:40px;display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:12px;padding:7px 34px 7px 10px;background:var(--surface);color:var(--text);font:inherit;font-weight:700;cursor:pointer;text-align:left;position:relative;white-space:nowrap;box-shadow:0 4px 12px rgba(34,48,76,.04)}',
+    '.ag-language-button{min-width:166px;height:40px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:7px 34px 7px 10px;background:var(--surface);color:var(--text);font:inherit;font-weight:700;cursor:pointer;text-align:left;position:relative;white-space:nowrap;box-shadow:0 4px 12px rgba(34,48,76,.04)}',
     '.ag-language-button:hover{border-color:var(--primary)}',
     '.ag-language-button:focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 35%,transparent);outline-offset:2px}',
     '.ag-language-button .ag-flag,.ag-language-option .ag-flag{width:24px;height:16px;flex:0 0 24px;display:inline-flex;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.16)}',
     '.ag-language-button .ag-flag svg,.ag-language-option .ag-flag svg{width:100%;height:100%;display:block}',
+    '.ag-language-code{font-size:.76em;font-weight:850;letter-spacing:.04em;opacity:.82}',
+    '.ag-language-name{overflow:hidden;text-overflow:ellipsis}',
     '.ag-language-chevron{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--muted)}',
     '.ag-language-options{position:absolute;z-index:10000;right:0;top:calc(100% + 5px);min-width:100%;width:max-content;max-width:min(230px,calc(100vw - 20px));background:var(--surface);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);padding:5px;display:none}',
     '.ag-language-menu.open .ag-language-options{display:grid}',
-    '.ag-language-option{min-width:170px;min-height:40px;display:flex;align-items:center;gap:9px;padding:7px 10px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer}',
+    '.ag-language-option{min-width:180px;min-height:40px;display:grid;grid-template-columns:24px 30px minmax(0,1fr);align-items:center;gap:8px;padding:7px 10px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer}',
     '.ag-language-option:hover,.ag-language-option:focus-visible{outline:none;background:var(--surface-2)}',
     '.ag-language-option:focus-visible{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--primary) 45%,transparent)}',
     '.ag-language-option.selected{background:var(--primary-soft);color:var(--primary);font-weight:750}',
-    '@media(max-width:590px){.ag-language-button{min-width:134px;height:36px;padding:6px 30px 6px 8px;gap:7px;font-size:.76rem}.ag-language-options{left:0;right:auto}.ag-language-option{min-width:150px}.ag-language-button .ag-flag,.ag-language-option .ag-flag{width:22px;height:15px;flex-basis:22px}}'
+    '@media(max-width:590px){.ag-language-button{min-width:148px;height:36px;padding:6px 30px 6px 8px;gap:7px;font-size:.76rem}.ag-language-options{left:0;right:auto}.ag-language-option{min-width:170px;grid-template-columns:22px 28px minmax(0,1fr)}.ag-language-button .ag-flag,.ag-language-option .ag-flag{width:22px;height:15px;flex-basis:22px}}'
   ].join('');
   document.head.appendChild(style);
 }
@@ -111,7 +121,7 @@ function enhanceSelect(select) {
     optionButton.dataset.language = language;
     optionButton.setAttribute('role', 'option');
     optionButton.tabIndex = -1;
-    optionButton.innerHTML = flagMarkup(language) + '<span>' + name + '</span>';
+    optionButton.innerHTML = flagMarkup(language) + '<span class="ag-language-code">' + LANGUAGE_CODES[language] + '</span><span class="ag-language-name">' + name + '</span>';
     options.appendChild(optionButton);
   });
 
@@ -119,7 +129,7 @@ function enhanceSelect(select) {
 
   function updateDisplay() {
     const language = LANGUAGE_NAMES[select.value] ? select.value : 'en';
-    button.innerHTML = flagMarkup(language) + '<span>' + LANGUAGE_NAMES[language] + '</span><span class="ag-language-chevron" aria-hidden="true">▼</span>';
+    button.innerHTML = flagMarkup(language) + '<span class="ag-language-code">' + LANGUAGE_CODES[language] + '</span><span class="ag-language-name">' + LANGUAGE_NAMES[language] + '</span><span class="ag-language-chevron" aria-hidden="true">▼</span>';
     items().forEach((optionButton) => {
       const selected = optionButton.dataset.language === language;
       optionButton.classList.toggle('selected', selected);
