@@ -20,7 +20,10 @@ let selectedDate = toDateKey(new Date());
 let activeTab = 'today';
 let toastTimer;
 let importGeneration = 0;
+let deferredWebInstallPrompt = null;
+let webInstallStatusKey = 'waiting';
 
+let webInstallRequested = new URLSearchParams(window.location.search).get('install') === 'web';
 const app = document.querySelector('#app');
 
 const supplementalTranslations = {
@@ -29,30 +32,80 @@ const supplementalTranslations = {
     copyError: 'Kopiranje nije uspjelo.',
     markTaskDone: 'Označi zadatak izvršenim',
     markTaskUndone: 'Označi zadatak neizvršenim',
+    webInstallTitle: 'Instaliraj Habit Tracker / Daily Planner',
+    webInstallDescription: 'Instaliraj aplikaciju za brzi pristup u zasebnom prozoru. Vaši podaci ostaju lokalno u pregledniku.',
+    webInstallAction: 'Instaliraj Web App',
+    webInstallContinue: 'Nastavi u pregledniku',
+    webInstallWaiting: 'Provjeravam je li instalacija dostupna…',
+    webInstallReady: 'Aplikacija je spremna za instalaciju.',
+    webInstallInstalling: 'Otvaram instalacijski dijalog…',
+    webInstallInstalled: 'Aplikacija je instalirana.',
+    webInstallDismissed: 'Instalacija je otkazana. Možete nastaviti koristiti aplikaciju u pregledniku.',
+    webInstallUnavailable: 'Automatski dijalog trenutačno nije dostupan. Instalaciju možete pokrenuti i iz izbornika preglednika.',
   },
   en: {
     saveError: 'Saving failed. The change was not applied.',
     copyError: 'Copying failed.',
     markTaskDone: 'Mark task as complete',
     markTaskUndone: 'Mark task as incomplete',
+    webInstallTitle: 'Install Habit Tracker / Daily Planner',
+    webInstallDescription: 'Install the app for quick access in its own window. Your data stays locally in your browser.',
+    webInstallAction: 'Install Web App',
+    webInstallContinue: 'Continue in browser',
+    webInstallWaiting: 'Checking whether installation is available…',
+    webInstallReady: 'The app is ready to install.',
+    webInstallInstalling: 'Opening the install dialog…',
+    webInstallInstalled: 'The app is installed.',
+    webInstallDismissed: 'Installation was dismissed. You can keep using the app in your browser.',
+    webInstallUnavailable: 'The automatic install dialog is not available right now. You can also install from your browser menu.',
   },
   de: {
     saveError: 'Speichern fehlgeschlagen. Die Änderung wurde nicht übernommen.',
     copyError: 'Kopieren fehlgeschlagen.',
     markTaskDone: 'Aufgabe als erledigt markieren',
     markTaskUndone: 'Aufgabe als nicht erledigt markieren',
+    webInstallTitle: 'Habit Tracker / Daily Planner installieren',
+    webInstallDescription: 'Installiere die App für schnellen Zugriff in einem eigenen Fenster. Deine Daten bleiben lokal im Browser.',
+    webInstallAction: 'Web-App installieren',
+    webInstallContinue: 'Im Browser fortfahren',
+    webInstallWaiting: 'Es wird geprüft, ob die Installation verfügbar ist…',
+    webInstallReady: 'Die App ist zur Installation bereit.',
+    webInstallInstalling: 'Installationsdialog wird geöffnet…',
+    webInstallInstalled: 'Die App ist installiert.',
+    webInstallDismissed: 'Die Installation wurde abgebrochen. Du kannst die App im Browser weiterverwenden.',
+    webInstallUnavailable: 'Der automatische Installationsdialog ist derzeit nicht verfügbar. Die Installation kann auch über das Browsermenü gestartet werden.',
   },
   it: {
     saveError: 'Salvataggio non riuscito. La modifica non è stata applicata.',
     copyError: 'Copia non riuscita.',
     markTaskDone: 'Segna attività come completata',
     markTaskUndone: 'Segna attività come non completata',
+    webInstallTitle: 'Installa Habit Tracker / Daily Planner',
+    webInstallDescription: 'Installa l\'app per un accesso rapido in una finestra separata. I tuoi dati restano localmente nel browser.',
+    webInstallAction: 'Installa Web App',
+    webInstallContinue: 'Continua nel browser',
+    webInstallWaiting: 'Verifica della disponibilità dell\'installazione…',
+    webInstallReady: 'L\'app è pronta per essere installata.',
+    webInstallInstalling: 'Apertura della finestra di installazione…',
+    webInstallInstalled: 'L\'app è installata.',
+    webInstallDismissed: 'Installazione annullata. Puoi continuare a usare l\'app nel browser.',
+    webInstallUnavailable: 'La finestra automatica di installazione non è disponibile al momento. Puoi installare anche dal menu del browser.',
   },
   es: {
     saveError: 'No se pudo guardar. El cambio no se aplicó.',
     copyError: 'No se pudo copiar.',
     markTaskDone: 'Marcar tarea como completada',
     markTaskUndone: 'Marcar tarea como no completada',
+    webInstallTitle: 'Instalar Habit Tracker / Daily Planner',
+    webInstallDescription: 'Instala la app para acceder rápidamente en una ventana independiente. Tus datos permanecen localmente en el navegador.',
+    webInstallAction: 'Instalar Web App',
+    webInstallContinue: 'Continuar en el navegador',
+    webInstallWaiting: 'Comprobando si la instalación está disponible…',
+    webInstallReady: 'La app está lista para instalarse.',
+    webInstallInstalling: 'Abriendo el diálogo de instalación…',
+    webInstallInstalled: 'La app está instalada.',
+    webInstallDismissed: 'La instalación se canceló. Puedes seguir usando la app en el navegador.',
+    webInstallUnavailable: 'El diálogo automático de instalación no está disponible ahora. También puedes instalar desde el menú del navegador.',
   },
 };
 
@@ -68,6 +121,79 @@ function t(key) {
 }
 
 function locale() { return localeMap[state.settings.language] || 'en-GB'; }
+
+function isWebAppStandalone() {
+  return window.matchMedia?.('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+}
+
+function renderWebInstallBanner(statusKey = null) {
+  if (!webInstallRequested) {
+    document.querySelector('#webInstallBanner')?.remove();
+    return;
+  }
+
+  if (statusKey) webInstallStatusKey = statusKey;
+  if (isWebAppStandalone()) webInstallStatusKey = 'installed';
+
+  let banner = document.querySelector('#webInstallBanner');
+  if (!banner) {
+    banner = document.createElement('aside');
+    banner.id = 'webInstallBanner';
+    banner.className = 'web-install-banner card';
+    banner.setAttribute('role', 'region');
+    banner.setAttribute('aria-live', 'polite');
+    document.body.appendChild(banner);
+  }
+
+  const statusTranslationKey = `webInstall${webInstallStatusKey.charAt(0).toUpperCase() + webInstallStatusKey.slice(1)}`;
+  banner.innerHTML = `
+    <div class="web-install-heading">
+      <div class="web-install-icon" aria-hidden="true">✓</div>
+      <div>
+        <strong>${t('webInstallTitle')}</strong>
+        <p>${t('webInstallDescription')}</p>
+      </div>
+    </div>
+    <p class="web-install-status">${t(statusTranslationKey)}</p>
+    <div class="web-install-actions">
+      <button class="primary-button" id="installWebAppButton" type="button">${t('webInstallAction')}</button>
+      <button class="secondary-button" id="continueWebButton" type="button">${t('webInstallContinue')}</button>
+    </div>
+  `;
+
+  const installButton = banner.querySelector('#installWebAppButton');
+  installButton.disabled = !deferredWebInstallPrompt || isWebAppStandalone();
+  banner.querySelector('#continueWebButton')?.addEventListener('click', continueInBrowser);
+  installButton.addEventListener('click', installWebApplication);
+}
+
+async function installWebApplication() {
+  if (isWebAppStandalone()) {
+    renderWebInstallBanner('installed');
+    return;
+  }
+
+  if (!deferredWebInstallPrompt) {
+    renderWebInstallBanner('unavailable');
+    return;
+  }
+
+  renderWebInstallBanner('installing');
+  deferredWebInstallPrompt.prompt();
+  const choice = await deferredWebInstallPrompt.userChoice;
+  deferredWebInstallPrompt = null;
+
+  renderWebInstallBanner(choice.outcome === 'accepted' ? 'installing' : 'dismissed');
+}
+
+function continueInBrowser() {
+  webInstallRequested = false;
+  document.querySelector('#webInstallBanner')?.remove();
+  const url = new URL(window.location.href);
+  url.searchParams.delete('install');
+  history.replaceState({}, '', url);
+}
 
 function cloneState(value) {
   return typeof structuredClone === 'function'
@@ -263,6 +389,7 @@ function render({ preserveTransient = false } = {}) {
   `;
   bindEvents();
   enhanceLanguageMenus(app);
+  if (webInstallRequested) renderWebInstallBanner();
   if (transient) restoreTransientUi(transient);
 }
 
@@ -704,6 +831,25 @@ window.addEventListener('storage', (event) => {
 
   render({ preserveTransient: true });
 });
+
+if (webInstallRequested) {
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredWebInstallPrompt = event;
+    renderWebInstallBanner('ready');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredWebInstallPrompt = null;
+    renderWebInstallBanner('installed');
+  });
+
+  window.setTimeout(() => {
+    if (!deferredWebInstallPrompt && !isWebAppStandalone()) {
+      renderWebInstallBanner('unavailable');
+    }
+  }, 3000);
+}
 
 watchSystemTheme(() => state.settings.theme);
 render();
