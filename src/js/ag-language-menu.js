@@ -35,7 +35,7 @@ function installStyles() {
     '.ag-language-option:hover,.ag-language-option:focus-visible{outline:none;background:var(--surface-2)}',
     '.ag-language-option:focus-visible{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--primary) 45%,transparent)}',
     '.ag-language-option.selected{background:var(--primary-soft);color:var(--primary);font-weight:750}',
-    '@media(max-width:590px){.ag-language-button{min-width:134px;height:36px;padding:6px 30px 6px 8px;gap:7px;font-size:.76rem}.ag-language-option{min-width:150px}.ag-language-button .ag-flag,.ag-language-option .ag-flag{width:22px;height:15px;flex-basis:22px}}'
+    '@media(max-width:590px){.ag-language-button{min-width:134px;height:36px;padding:6px 30px 6px 8px;gap:7px;font-size:.76rem}.ag-language-options{left:0;right:auto}.ag-language-option{min-width:150px}.ag-language-button .ag-flag,.ag-language-option .ag-flag{width:22px;height:15px;flex-basis:22px}}'
   ].join('');
   document.head.appendChild(style);
 }
