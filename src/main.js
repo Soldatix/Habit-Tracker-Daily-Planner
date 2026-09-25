@@ -347,7 +347,7 @@ function render({ preserveTransient = false } = {}) {
         <div class="top-actions">
           <div title="${t('language')}">
             <select id="languageSelect" data-ag-language-menu aria-label="${t('language')}">
-              ${[['hr','Hrvatski'],['en','English'],['de','Deutsch'],['it','Italiano'],['es','Español']].map(([value,label]) => `<option value="${value}" ${state.settings.language === value ? 'selected' : ''}>${label}</option>`).join('')}
+              ${[['en','English'],['hr','Hrvatski'],['de','Deutsch'],['it','Italiano'],['es','Español']].map(([value,label]) => `<option value="${value}" ${state.settings.language === value ? 'selected' : ''}>${label}</option>`).join('')}
             </select>
           </div>
           <label class="compact-control" title="${t('theme')}">
