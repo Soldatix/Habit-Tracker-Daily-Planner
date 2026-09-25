@@ -124,7 +124,7 @@ function restoreTransientUi(snapshot) {
     for (const saved of savedForm.fields) {
       const element = elements[saved.index];
       if (!element || element.type === 'file') continue;
-      if (typeof saved.checked === 'boolean') element.checked = saved.checked;
+      if (saved.type === 'checkbox' || saved.type === 'radio') element.checked = Boolean(saved.checked);
       else element.value = saved.value;
     }
     if (savedForm.id === 'habitForm') updateDayPresetState(form);
