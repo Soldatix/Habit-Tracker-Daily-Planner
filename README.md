@@ -39,3 +39,9 @@ Output directory: `dist`
 
 ## Baseline rule
 Tag the first verified version as `v1.0.0-baseline` before AG2 V2.1 vs Codex experiments. Both agents must start from the same commit and receive the same benchmark task.
+
+## Credits / Attribution
+
+If you use our source code to create your own version, we'd appreciate a mention in its About / Info section:
+
+**Based on Habit Tracker / Daily Planner by Apps & Games — [appsandgames.org](https://appsandgames.org/)**
