@@ -1,0 +1,41 @@
+name: Habit Tracker build
+on:
+  push:
+    branches:
+      - "pilot/adsterra-habit-bottom-2026-11-09"
+  pull_request:
+    paths:
+      - "index.html"
+      - "public/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install existing package dependencies
+        # Baseline lockfile predates optional Vite transitive dependencies.
+        # npm install reconciles them in the CI runner without committing a lockfile.
+        run: npm install --no-save --no-audit --no-fund
+      - name: Build production Vite assets
+        run: npm run build
+      - name: Verify deployable output
+        run: |
+          test -s dist/index.html
+          test -s dist/habit-adsterra-loader.js
+          test -s dist/habit-adsterra.css

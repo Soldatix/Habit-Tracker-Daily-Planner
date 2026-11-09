@@ -1,0 +1,47 @@
+/* Habit Tracker — footer-advertising slot, outside the interactive app.
+ * With no existing advertising consent, the whole section stays hidden
+ * and occupies no page space. Its fixed-format iframe is never clipped
+ * by the app-shell margins/padding.
+ */
+#habit-ad-area[hidden],
+#habit-ad-area .habit-ad-unit[hidden] { display: none !important; }
+
+#habit-ad-area {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0 5px;
+}
+#habit-ad-area .habit-ad-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  text-align: center;
+}
+.habit-ad-label {
+  font: 11px/1.4 system-ui, sans-serif;
+  color: var(--muted, #6b778c);
+  padding-bottom: 6px;
+}
+.habit-privacy-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 5px 12px 22px;
+  min-height: 36px;
+}
+.habit-privacy-footer .ag-privacy-footer-control {
+  cursor: pointer;
+  padding: 7px 12px;
+}
+@media (max-width: 319px) {
+  #habit-ad-area { display: none !important; }
+}
+@media print {
+  #habit-ad-area, .habit-privacy-footer { display: none !important; }
+}
