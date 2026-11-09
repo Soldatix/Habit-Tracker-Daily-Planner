@@ -24,6 +24,9 @@
 
     <link rel="icon" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/habit-adsterra.css" />
+    <link rel="stylesheet" href="https://appsandgames.org/privacy-choice.css" />
+    <script defer src="https://appsandgames.org/privacy-choice.js"></script>
     <title>Habit Tracker / Daily Planner | Apps & Games</title>
 
     <script type="application/ld+json">
@@ -53,6 +56,17 @@
   </head>
   <body>
     <div id="app"></div>
+    <!-- Parser-time original Adsterra GET CODE, placed below the entire
+         planner and its dynamic footer. Never inside the rerendered #app. -->
+    <section id="habit-ad-area" aria-label="Advertisement" hidden>
+      <div class="habit-ad-unit" data-size="728x90" hidden>
+        <script src="/habit-adsterra-loader.js" data-unit="desktop"></script>
+      </div>
+      <div class="habit-ad-unit" data-size="320x50" hidden>
+        <script src="/habit-adsterra-loader.js" data-unit="mobile"></script>
+      </div>
+    </section>
+    <div class="footer-links habit-privacy-footer" aria-label="Privacy choices"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
