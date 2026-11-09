@@ -1,5 +1,8 @@
 name: Habit Tracker build
 on:
+  push:
+    branches:
+      - "pilot/adsterra-habit-bottom-2026-11-09"
   pull_request:
     paths:
       - "index.html"
