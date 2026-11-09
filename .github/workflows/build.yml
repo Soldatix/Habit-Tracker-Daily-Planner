@@ -25,8 +25,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - name: Install existing lockfile dependencies
-        run: npm ci --no-audit --no-fund
+      - name: Install existing package dependencies
+        # Baseline lockfile predates optional Vite transitive dependencies.
+        # npm install reconciles them in the CI runner without committing a lockfile.
+        run: npm install --no-save --no-audit --no-fund
       - name: Build production Vite assets
         run: npm run build
       - name: Verify deployable output
